@@ -31,6 +31,7 @@ Submenu: 'All as single prp (.prp)' e_prp
 Submenu: 'All as single prp, per-page textures (.prp)' et_prp
 Submenu: 'All as single prp, per-page textures+generate BuiltIn (.prp)' etb_prp
 Submenu: 'Selection as single prp (.prp)' es_prp
+Submenu: '*** PROFILE EXPORT ***' e_age_final_profile
 Tooltip: 'GoW PyPRP Exporter'
 """
 
@@ -56,6 +57,8 @@ from os.path import *
 from PyPRP.prp_ResManager import *
 from PyPRP.prp_Types import *
 from PyPRP.prp_AlcScript import *
+
+_filename = None
 
 def export_age(agename,basepath,selection=0,merge=0,pagename=None,doBuiltIn=False):
     print "Exporting age %s" %agename
@@ -114,14 +117,20 @@ def export_age(agename,basepath,selection=0,merge=0,pagename=None,doBuiltIn=Fals
     age.mfs.writesum(basepath + "/" + agename + ".sum",old_style)
 
 
-def open_file(filename):
+def open_file(filename=None):
+    # The profile export mode will give us nothing.
+    # Passing an arg in is hard, unfortunately, and bug prone. SO HAX!
+    if filename is None:
+        filename = _filename
+
     try:
         import psyco
         psyco.profile()
     except ImportError:
         print "Psyco not available to PyPRP..."
     start=time.clock()
-    log=ptLog(sys.stdout,filename + ".log","w")
+    print filename
+    log=ptLog(sys.stdout, "%s.log" % filename,"w")
     std=sys.stdout
     sys.stdout=log
     print("Exporting %s ..." % filename)
@@ -217,6 +226,25 @@ def open_file(filename):
     log.close()
 
 
+def open_file_profile(fname):
+    global _filename
+
+    import cProfile, pstats
+    base = split(fname)[0]
+    profile = join(base, "cprofile")
+
+    # The __main__ dicts don't have anything from this module, so I'm assuming
+    # blender does some odd sandboxing.
+    _filename = fname
+    cProfile.runctx("open_file()", globals(), locals(), profile)
+
+    # We'll now dump the profiling data in a Hoikas friendly way
+    with open(join(base, "profile.txt"), "w") as out:
+        stats = pstats.Stats(profile, stream=out)
+        stats = stats.sort_stats("time", "calls")
+        stats.print_stats()
+
+
 def do_main():
     try:
         args = __script__['arg']
@@ -229,7 +257,11 @@ def do_main():
         descr = "Export . " + w[1]
 
     fname = Blender.sys.makename(ext = "." + w[1])
-    Blender.Window.FileSelector(open_file, descr, fname)
+    if args.endswith('profile'):
+        proc = open_file_profile
+    else:
+        proc = open_file
+    Blender.Window.FileSelector(proc, descr, fname)
 
 
 #Main code

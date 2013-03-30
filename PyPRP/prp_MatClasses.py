@@ -1944,7 +1944,28 @@ class plMipMap(plBitmap):                    # Type 0x04
         return Tex
 
     def FromBlenderImage(self,BlenderImage):
-        if(self.Processed):
+        def process_pixels(img, width, height, calc):
+            full_alpha = False
+            on_off_alpha = False
+
+            pixels = img.load()
+            for x in xrange(width):
+                for y in xrange(height):
+                    r, g, b, a = pixels[x, y]
+                    if calc:
+                        a = int((r + g + b) / 3)
+                    else:
+                        a = 255 # gifs are opaque
+                    pixels[x, y] = (r, g, b, a)
+
+                    if a == 0 and not full_alpha:
+                        on_off_alpha = True
+                        if a > 0 and a <= 255:
+                            on_off_alpha = False
+                            full_alpha = True
+            return (on_off_alpha, full_alpha)
+
+        if self.Processed:
             return
 
         print "    [MipMap %s]"%str(self.Key.name)
@@ -1959,34 +1980,39 @@ class plMipMap(plBitmap):                    # Type 0x04
 
             print "     Converting texture %s..." %str(self.Key.name)
             ImWidth, ImHeight = BlenderImage.getSize()
-            ImageBuffer=cStringIO.StringIO()
 
+            # The fastest way to load the image in is to read it off the disk.
+            # We need to unpack it temporarily if it's packed.
+            if BlenderImage.packed:
+                tempfile = os.path.join(self.getResManager().getBasePath(), "temp-texture")
+                if os.path.isfile(tempfile):
+                    # blender will do the annoying .000000001 thing >.<
+                    os.unlink(tempfile)
+                oldfile = BlenderImage.filename
+                BlenderImage.filename = tempfile
+                BlenderImage.save()
+
+            # Manage the file ourselves because PIL leaves it open. This is
+            # bad because we try to unlink our temp files...
+            with open(BlenderImage.filename, 'rb') as handle:
+                pil = Image.open(handle)
+                pil.load()
+
+            # Lame junk
             self.FullAlpha = False
             self.OnOffAlpha = False
+            isGIF = BlenderImage.getFilename().endswith(".gif")
 
-            if str(BlenderImage.getFilename())[-4:]==".gif":
-                isGIF=1
-                print "     Image is GIF Image"
-            else:
-                isGIF=0
+            # Now, we do some processing... But first, ensure it's RGBA
+            if pil.mode != "RGBA":
+                pil = pil.convert("RGBA")
+            if self.MipMapInfo.fCalcAlpha or isGIF:
+                self.OnOffAlpha, self.FullAlpha = process_pixels(pil, ImWidth, ImHeight, self.MipMapInfo.fCalcAlpha)
 
-            for y in range(ImHeight,0,-1):
-                for x in range(ImWidth):
-                    r,g,b,a = BlenderImage.getPixelF(x,y-1)
-                    if self.MipMapInfo.fCalcAlpha:
-                        a = (float(r)+float(g)+float(b))/3.0
-                    else:
-                        if isGIF: # ignora alpha info, and always put it to opaque
-                            a=1.0
-
-                    #print "Color: %f %f %f - Alpha: %f" % (r,g,b,a)
-                    if a == 0 and not self.FullAlpha:
-                        self.OnOffAlpha = True
-                    if a > 0.0 and a < 1.0:
-                        OnOffAlpha = 0
-                        self.FullAlpha = True
-
-                    ImageBuffer.write(struct.pack("BBBB",r*255,g*255,b*255,a*255))
+            # If the image was packed, let's throw away our temporary copy.
+            if BlenderImage.packed:
+                BlenderImage.filename = oldfile
+                os.unlink(tempfile)
 
             # see if we should automatically determine compression type
             if self.MipMapInfo.fCompressionType == plBitmap.Compression["kDirectXCompression"] and \
@@ -2002,7 +2028,7 @@ class plMipMap(plBitmap):                    # Type 0x04
                     print "     Image uses no alpha, compressing DXT1"
 
             # Reset the image buffer
-            ImageBuffer.seek(0)
+            ImageBuffer = cStringIO.StringIO(pil.tostring())
 
             # And use the FromRawImage function to set this texture data.
 

@@ -2027,46 +2027,39 @@ class plMipMap(plBitmap):                    # Type 0x04
                     self.MipMapInfo.fBitmapInfo.fDirectXInfo.fCompressionType = plBitmap.CompressionType["kDXT1"]
                     print "     Image uses no alpha, compressing DXT1"
 
-            # Reset the image buffer
-            ImageBuffer = cStringIO.StringIO(pil.tostring())
-
-            # And use the FromRawImage function to set this texture data.
-
-            self.FromRawImage(ImageBuffer,ImWidth,ImHeight)
+            # This does the grunt work of mipmapping &c
+            self.FromPIL(pil, ImWidth, ImHeight)
 
             # now store the data in a file if texture_cache is enabled
-            if (prp_Config.texture_cache):
+            if prp_Config.texture_cache:
                 self.TexCache_Store()
 
         self.Processed = 1
 
-    def FromRawImage(self, ImageBuffer, Width, Height):
+    def FromRawImage(self, buf, width, height):
+        image = Image.open(buf)
+        self.FromPIL(image, width, height)
+
+    def FromPIL(self, image, Width, Height):
 
         # Copy basic parameters
-        self.fWidth     = Width
-        self.fHeight    = Height
+        self.fWidth = Width
+        self.fHeight = Height
 
         # prepare the image buffer and images field
-        ImageBuffer.seek(0)
-        self.fImages=[]
+        self.fImages = []
+        our_image = image
 
         # Resize images to make width and height be powers of two
-        # Makes it easier on the graphics card.
-        # Don't do this on JPEG compression
         if self.MipMapInfo.fResize and self.MipMapInfo.fCompressionType != plBitmap.Compression["kJPEGCompression"]:
+            new_w = pow(2, int(math.log(self.fWidth, 2)))
+            new_h = pow(2, int(math.log(self.fHeight,2)))
 
-            new_w=2 ** int(math.log(self.fWidth,2))
-            new_h=2 ** int(math.log(self.fHeight,2))
-
-            if new_w!=self.fWidth or new_h!=self.fHeight:
+            if new_w != self.fWidth or new_h != self.fHeight:
                 print "      Resizing image from %ix%i to %ix%i" % (self.fWidth,self.fHeight,new_w, new_h)
-                im=Image.new("RGBA",(self.fWidth,self.fHeight))
-                im.fromstring(ImageBuffer.read())
-                im2=im.resize((new_w,new_h),Image.ANTIALIAS)
-                ImageBuffer=cStringIO.StringIO()
-                ImageBuffer.write(im2.tostring())
-                self.fWidth=new_w
-                self.fHeight=new_h
+                our_image = image.resize((new_w, new_h), Image.ANTIALIAS)
+                self.fWidth = new_w
+                self.fHeight = new_h
             else:
                 print "      Image size: %ix%i" % (self.fWidth,self.fHeight)
         else:
@@ -2074,7 +2067,6 @@ class plMipMap(plBitmap):                    # Type 0x04
 
         # Compress the image to the desired compression,
         # either DXT compression, JPEG Compression or Uncompressed (only RGB8888 colorspace supported)
-
         if (self.MipMapInfo.fCompressionType == plBitmap.Compression["kDirectXCompression"]):
             print "      DXT Compressing texture .... this can take a few minutes"
 
@@ -2089,10 +2081,10 @@ class plMipMap(plBitmap):                    # Type 0x04
                 print "     DXT Compression unknown"
                 raise RuntimeError, "Okay, don't know what went wrong here... Probably you're a really smart person to be able to get this exception that should never be given...."
 
-            myimg=tDxtImage(self.fWidth,self.fHeight,self.MipMapInfo.fBitmapInfo.fDirectXInfo.fCompressionType)
-            myimg.data=ImageBuffer  # input the buffer into the image
+            myimg = tDxtImage(self.fWidth, self.fHeight, self.MipMapInfo.fBitmapInfo.fDirectXInfo.fCompressionType)
+            myimg.data = cStringIO.StringIO(our_image.tostring()) # input the buffer into the image
             myimg.fromRGBA()        # tell it to process
-            self.fImages=[myimg,]
+            self.fImages = [myimg,]
             self.fCompressionType = plBitmap.Compression["kDirectXCompression"]
             self.BitmapInfo.fDirectXInfo.fCompressionType = self.MipMapInfo.fBitmapInfo.fDirectXInfo.fCompressionType
 
@@ -2106,20 +2098,20 @@ class plMipMap(plBitmap):                    # Type 0x04
         elif (self.MipMapInfo.fCompressionType == plBitmap.Compression["kJPEGCompression"]):
             print "     JPEG Compressing texture ...."
 
-            myimg=tJpgImage(self.fWidth,self.fHeight)
-            myimg.data=ImageBuffer  # input the buffer into the image
+            myimg = tJpgImage(self.fWidth, self.fHeight)
+            myimg.data = cStringIO.StringIO(our_image.tostring())  # input the buffer into the image
             myimg.fromRGBA()        # tell it to process
-            self.fImages=[myimg,]
+            self.fImages = [myimg,]
             self.fCompressionType = plBitmap.Compression["kJPEGCompression"]
             self.BitmapInfo.fUncompressedInfo.fType = plBitmap.Uncompressed["kRGB8888"];
 
         elif (self.MipMapInfo.fCompressionType == plBitmap.Compression["kUncompressed"]):
             print "     Not Compressing texture"
 
-            myimg=tImage(self.fWidth,self.fHeight)
-            myimg.data=ImageBuffer  # input the buffer into the image
+            myimg = tImage(self.fWidth,self.fHeight)
+            myimg.data = cStringIO.StringIO(our_image.tostring())  # input the buffer into the image
             myimg.fromRGBA()        # tell it to process
-            self.fImages=[myimg,]
+            self.fImages = [myimg,]
             self.fCompressionType = plBitmap.Compression["kUncompressed"]
             self.BitmapInfo.fUncompressedInfo.fType = plBitmap.Uncompressed["kRGB8888"];
 
@@ -2134,20 +2126,20 @@ class plMipMap(plBitmap):                    # Type 0x04
 #            print "     MipMapinfo:\n",self.MipMapInfo
 
             print "      Level 0 %ix%i" %(self.fWidth,self.fHeight)
-            i=1
-            mw=self.fWidth>>i
-            mh=self.fHeight>>i
-            while mw!=0 and mh!=0:
+            i = 1
+            mw = self.fWidth>>i
+            mh = self.fHeight>>i
+            while mw != 0 and mh != 0:
                 print "      Level %i %ix%i" %(i,mw,mh)
-                img=copy.copy(myimg)    # copy the previous image
-                img.resize_alphamult(mw,mh,self.MipMapInfo.fAlphaMult,self.MipMapInfo.fGauss)       # apply the new size
+                img = copy.copy(myimg)    # copy the previous image
+                img.resize_alphamult(mw, mh, self.MipMapInfo.fAlphaMult, self.MipMapInfo.fGauss)       # apply the new size
 
                 img.fromRGBA()          # and reprocess/recompress
                 self.fImages.append(img) # add to the list
-                myimg=img
-                i=i+1
-                mw=self.fWidth>>i
-                mh=self.fHeight>>i
+                myimg = img
+                i = i+1
+                mw = self.fWidth >> i
+                mh = self.fHeight >> i
 
         print "Done"
 
@@ -2432,6 +2424,7 @@ class plCubicEnvironMap(plBitmap):          # Type 0x05
                             self.FullAlpha = True
 
                         ImageBuffer.write(struct.pack("BBBB",r*255,g*255,b*255,a*255))
+                ImageBuffer.seek(0)
 
                 # see if we should automatically determine compression type
                 if self.MipMapInfo.fCompressionType == plBitmap.Compression["kDirectXCompression"] and \
@@ -2455,7 +2448,9 @@ class plCubicEnvironMap(plBitmap):          # Type 0x05
 
                 MipMappedFace.MipMapInfo = self.MipMapInfo
                 # assign the texture
-                MipMappedFace.FromRawImage(ImageBuffer,xpart,ypart)
+                im = Image.new("RGBA", (xpart, ypart))
+                im.fromstring(ImageBuffer.read())
+                MipMappedFace.FromPIL(im, xpart, ypart)
 
                 self.fFaces.append(MipMappedFace)
 

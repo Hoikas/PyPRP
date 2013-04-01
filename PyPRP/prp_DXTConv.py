@@ -227,25 +227,21 @@ class tDxtImage(tImage):
 
 
     def fromRGBA(self):
-        if self.w<=2 or self.h<=2:
+        if self.w <= 2 or self.h <= 2:
             self.iconvert()
             return
-        if (self.w % 4) or (self.h % 4):
-            raise RuntimeError, "Invalid DXT size %ix%i"%(self.w,self.h)
+        if self.w % 4 or self.h % 4:
+            raise RuntimeError("Invalid DXT size %ix%i" % (self.w, self.h))
         self.data.seek(0)
-        self.rawdata=cStringIO.StringIO()
-        horn = (self.w)*4
-        hell = (self.w-4) * 4
-        y=0
-        while y<self.h:
-            x=0
-            while x<self.w:
-                self.rgba2texel(self.data,hell)
-                x+=4
-                if x<self.w:
-                    self.data.seek(-3 * horn,1)
-            y+=4
-            #self.data.seek(3*horn,1)
+        self.rawdata = cStringIO.StringIO()
+        horn = self.w * 4
+        hell = (self.w - 4) * 4
+
+        for y in xrange(0, self.h, 4):
+            for x in xrange(0, self.w, 4):
+                if x:
+                    self.data.seek(-3 * horn, 1)
+                self.rgba2texel(self.data, hell)
 
 
     def texel2rgba(self,texel,x,y,w):
@@ -354,8 +350,8 @@ class tDxtImage(tImage):
         b=[]
         a=[]
         alpha=0
-        for i in range(4):
-            for e in range(4):
+        for i in xrange(4):
+            for e in xrange(4):
                 #print input.tell(),self.w,self.h,w
                 ri,gi,bi,ai = struct.unpack("BBBB",input.read(4))
                 r.append(ri)
@@ -371,8 +367,8 @@ class tDxtImage(tImage):
             self.writeAlpha(a)
             #self.type=1
         maxi=0
-        for i in range(16):
-            for e in range(16):
+        for i in xrange(16):
+            for e in xrange(16):
                 d = pow(r[i] - r[e], 2) + pow(g[i] - g[e], 2) + pow(b[i] - b[e], 2)
                 if d>=maxi:
                     maxi=d
@@ -444,7 +440,7 @@ class tDxtImage(tImage):
         #u64 = u64 << 2
         #print "%X" %u64
         #print ">%X %X %X" %(u64,c0,c1)
-        for i in range(maxi):
+        for i in xrange(maxi):
             bi=(((maxi-i) * bt[0]) + ((i+1)*bt[1]))/(maxi+1)
             gi=(((maxi-i) * gt[0]) + ((i+1)*gt[1]))/(maxi+1)
             ri=(((maxi-i) * rt[0]) + ((i+1)*rt[1]))/(maxi+1)
@@ -455,12 +451,12 @@ class tDxtImage(tImage):
             rt.append(ri)
             gt.append(gi)
             bt.append(bi)
-        for i in range(16):
+        for i in xrange(16):
             mini = 3 * pow(255, 2)
             if maxi==1 and a[i]<128:
                 result=3L
             else:
-                for e in range(maxi+1,-1,-1):
+                for e in xrange(maxi + 1 ,-1, -1):
                     d = pow(r[i] - rt[e], 2) + pow (g[i] - gt[e], 2) + pow(b[i] - bt[e], 2)
                     if d<=mini:
                         result=0L
@@ -504,7 +500,7 @@ class tDxtImage(tImage):
         t=[]
         t.append(a0)
         t.append(a1)
-        for i in range(max):
+        for i in xrange(max):
             ai=(((max-i) * a0) + ((i+1)*a1))/(max+1)
             t.append(ai)
         if max==4:
@@ -514,7 +510,7 @@ class tDxtImage(tImage):
         x=0
         for a in alpha:
             dis=255
-            for e in range(7,-1,-1):
+            for e in xrange(7, -1, -1):
                 if abs(a-t[e])<=dis:
                     dis=abs(a-t[e])
                     w=0L

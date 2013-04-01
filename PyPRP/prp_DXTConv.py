@@ -373,7 +373,7 @@ class tDxtImage(tImage):
         maxi=0
         for i in range(16):
             for e in range(16):
-                d=self.distance(r[i],r[e],g[i],g[e],b[i],b[e])
+                d = pow(r[i] - r[e], 2) + pow(g[i] - g[e], 2) + pow(b[i] - b[e], 2)
                 if d>=maxi:
                     maxi=d
                     r0=r[i]
@@ -456,13 +456,12 @@ class tDxtImage(tImage):
             gt.append(gi)
             bt.append(bi)
         for i in range(16):
-            mini=255 ** 2 + 255 ** 2 + 255 ** 2
+            mini = 3 * pow(255, 2)
             if maxi==1 and a[i]<128:
                 result=3L
             else:
                 for e in range(maxi+1,-1,-1):
-                    #print r[i],rt[e],g[i],gt[e],b[i]
-                    d=self.distance(r[i],rt[e],g[i],gt[e],b[i],bt[e])
+                    d = pow(r[i] - rt[e], 2) + pow (g[i] - gt[e], 2) + pow(b[i] - bt[e], 2)
                     if d<=mini:
                         result=0L
                         result |=e
@@ -472,10 +471,6 @@ class tDxtImage(tImage):
             #    u64 = u64 << 2
         #print ">%X" %u64
         self.rawdata.write(struct.pack("<Q",u64))
-
-
-    def distance(self,a1,a2,b1,b2,c1,c2):
-        return pow(a1-a2,2) + pow(b1-b2,2) + pow(c1-c2,2)
 
 
     def writeAlpha(self,alpha):

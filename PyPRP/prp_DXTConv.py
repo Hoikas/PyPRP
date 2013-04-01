@@ -71,47 +71,25 @@ class tImage:
         self.w=w
         self.h=h
 
-    def resize_alphamult(self,w,h,alphamult=1.0,blur=False):
-        im = Image.new("RGBA",(self.w,self.h))
-        self.data.seek(0)
-        im.fromstring(self.data.read())
-        im2=im.resize((w,h),Image.ANTIALIAS)
+    def resize_alphamult(self, w, h, alphamult=1.0, blur=False):
+        im = Image.new("RGBA",(self.w, self.h))
+        im.fromstring(self.data.getvalue())
+        im = im.resize((w, h), Image.ANTIALIAS)
         if blur and w > 2 and h > 2:
-            # No point in blurring if there's only 2 pixels left :)
-            # Besides that, it gives trouble if you do it with less than 2 pixels
-            im3 = im2.filter(ImageFilter.BLUR)
-        else:
-            im3 = im2
+            # No point in blurring if there's only 4 pixels
+            im = im.filter(ImageFilter.BLUR)
 
-        self.data=cStringIO.StringIO()
-        self.data.write(im3.tostring())
-        self.w=w
-        self.h=h
+        if alphamult < 1.0:
+            coeff = int(alphamult * 255)
+            r, g, b, a = im.split()
+            a = a.point(lambda i: min(i * coeff, 255))
+            im = Image.merge(im.mode, (r, g, b, a))
 
-        if not float(alphamult) == 1.0: # No point in doing this for alphamults of 1.0 exactly....
-            self.alphamult(alphamult)
+        self.data = cStringIO.StringIO()
+        self.data.write(im.tostring())
+        self.w = w
+        self.h = h
 
-
-    def alphamult(self,value):
-        # Multiplies the alpha value for all pixels in this image with the given value
-
-        if float(value) < 0.0:
-            value = 0.0
-
-        aux=cStringIO.StringIO()
-        self.data.seek(0)
-        w = self.data.read(4)
-        while w!="":                #RGBA
-            r,g,b,a = struct.unpack("BBBB",w)
-
-            a = float(a) * float(value)
-                                  #RGBA
-            if a > 255:
-                a = 255
-
-            aux.write(struct.pack("BBBB",r,g,b,a))
-            w = self.data.read(4)
-        self.data=aux
 
     def save(self,name):
         self.toRGBA()

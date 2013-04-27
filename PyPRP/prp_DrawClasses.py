@@ -75,12 +75,11 @@ class plVertexCoder:
 
     def __init__(self):
         #State vars
-        self.Elements=[]
-        for i in range(30):
-            self.Elements.append(VertexCoderElement())
-        self.Colors=[]
-        for i in range(4):
-            self.Colors.append(VertexCoderColorElement())
+        self.Elements = [None] * 30
+        for i in xrange(len(self.Elements)):
+            self.Elements[i] = VertexCoderElement()
+        self.Colors = (VertexCoderColorElement(), VertexCoderColorElement(),
+                       VertexCoderColorElement(), VertexCoderColorElement())
 
     def read(self,bufferGroup,buf,count):
         #read encoded vertex info
@@ -115,38 +114,29 @@ class plVertexCoder:
             bufferGroup.fVertBuffStorage.append(vert)
 
 
-    def write(self,bufferGroup,buf,count):
+    def write(self, bufferGroup, buf, count):
         #State vars
-        VarA=[] #vertex coords (3)
-        Vector=[] #real vector
-        VBase=[] #vertex coords base
-        offset=[] #offsets
-        xVector=[]
-        VarB=[] #vertex weights (nblends)
-        BBase=[] #weight base
-        VarC=[] #vertex colors RGBA (4)
-        color=[] #the last color
-        VarD=[] #vertex tex coords (3 * ntex)
-        TBase=[] #tex coords base
-        for i in range(3):
-            VarA.append(0)
-            Vector.append(0)
-            xVector.append(0)
-            VBase.append(0)
-            offset.append(0)
-        for i in range(bufferGroup.GetNumSkinWeights()):
-            VarB.append(0)
-            BBase.append(0)
-        for i in range(4):
-            VarC.append(0)
-            color.append(0)
-        for i in range(3*bufferGroup.GetUVCount()):
-            VarD.append(0)
-            TBase.append(0)
+        VarA = [0] * 3 #vertex coords (3)
+        Vector = [0] * 3 #real vector
+        VBase = [0] * 3 #vertex coords base
+        offset = [0] * 3 #offsets
+        xVector = [0] * 3
+
+        _num_skin_weights = bufferGroup.GetNumSkinWeights()
+        VarB = [0] * _num_skin_weights #vertex weights (nblends)
+        BBase = [0] * _num_skin_weights #weight base
+
+        VarC = [0] * 4 #vertex colors RGBA (4)
+        color = [0] * 4 #the last color
+
+        _threeXuvs = 3 * bufferGroup.GetUVCount()
+        VarD = [0] * _threeXuvs #vertex tex coords (3 * ntex)
+        TBase = [0] * _threeXuvs #tex coords base
+
         compress=prp_Config.vertex_compression
         n = count
         #write encoded vertex info
-        for i in range(count):
+        for i in xrange(count):
             vert=bufferGroup.fVertBuffStorage[i]
             #Vertex Coordinates
             Vector[0]=vert.x
@@ -154,70 +144,61 @@ class plVertexCoder:
             Vector[2]=vert.z
             if not compress:
                 #uncompressed
-                for e in range(3):
-                   buf.write(struct.pack("<fHH",Vector[e],1,0)) #vertex base, n_vertexs, offset
+                for value in Vector:
+                    #vertex base, n_vertexs, offset
+                    buf.write(struct.pack("<fHH", value, 1, 0))
             else:
                 #compressed
-                for e in range(3):
-                    if VarA[e]==0:
+                for e in xrange(3):
+                    if VarA[e] == 0:
                         #first vertex with new base
-                        VBase[e]=Vector[e]
+                        VBase[e] = Vector[e]
                         #count vertex with same base
-                        for vi in range(n-i):
+                        for vi in xrange(n - i):
                             xxvert = bufferGroup.fVertBuffStorage[vi+i]
-                            xVector[0]=xxvert.x
-                            xVector[1]=xxvert.y
-                            xVector[2]=xxvert.z
-                            off = (xVector[e]-VBase[e]) * 1024.0
+                            xVector[0] = xxvert.x
+                            xVector[1] = xxvert.y
+                            xVector[2] = xxvert.z
+                            off = (xVector[e] - VBase[e]) * 1024.0
                             #32768
-                            if off<65536 and off>=0:
-                                VarA[e]=VarA[e]+1
+                            if off < 65536 and off >= 0:
+                                VarA[e] += 1
                             else:
                                 break
-                        buf.write(struct.pack("<fH",VBase[e],VarA[e]))
-                    off = (Vector[e]-VBase[e]) * 1024.0
-                    buf.write(struct.pack("<H",off))
-                    VarA[e]=VarA[e]-1
+                        buf.write(struct.pack("<fH", VBase[e], VarA[e]))
+                    off = (Vector[e] - VBase[e]) * 1024.0
+                    buf.write(struct.pack("<H", off))
+                    VarA[e] -= 1
 
             #Vertex weights
             if not compress:
-                for e in range(bufferGroup.GetNumSkinWeights()):
+                for e in xrange(bufferGroup.GetNumSkinWeights()):
                     buf.write(struct.pack("<fHH",vert.blend[e],1,0)) #blend base, n, offset
             else:
-                for e in range(bufferGroup.GetNumSkinWeights()):
-                    if VarB[e]==0:
+                for e in xrange(bufferGroup.GetNumSkinWeights()):
+                    if VarB[e] == 0:
                         #first
-                        BBase[e]=vert.blend[e]
+                        BBase[e] = vert.blend[e]
                         #count
-                        for vi in range(n-i):
+                        for vi in xrange(n-i):
                             xxvert = bufferGroup.fVertBuffStorage[vi+i]
                             off = (xxvert.blend[e] - BBase[e]) * 32768.0
-                            if off<65536 and off>=0:
-                                VarB[e]=VarB[e]+1
+                            if off < 65536 and off >= 0:
+                                VarB[e] += 1
                             else:
                                 break
-                        buf.write(struct.pack("<fH",BBase[e],VarB[e]))
+                        buf.write(struct.pack("<fH", BBase[e], VarB[e]))
                     off = (vert.blend[e] - BBase[e]) * 32768.0
-                    buf.write(struct.pack("<H",off))
-                    VarB[e]=VarB[e]-1
+                    buf.write(struct.pack("<H", off))
+                    VarB[e] -= 1
             if bufferGroup.GetNumSkinWeights() and bufferGroup.GetSkinIndices():
-                buf.write(struct.pack("BBBB",vert.bones[0],vert.bones[1],vert.bones[2],vert.bones[3]))
+                buf.write(struct.pack("BBBB", vert.bones[0], vert.bones[1], vert.bones[2], vert.bones[3]))
+
             #normals
-            nx = int(vert.nx * 32768.0)
-            ny = int(vert.ny * 32768.0)
-            nz = int(vert.nz * 32768.0)
-            if nx > 32767:
-                nx = 32767
-            elif nx < -32767:
-                nx = -32767
-            if ny > 32767:
-                ny = 32767
-            elif ny < -32767:
-                ny = -32767
-            if nz > 32767:
-                nz = 32767
-            elif nz < -32767:
-                nz = -32767
+            nx = max(min(int(vert.nx * 32768), 32767), -32767)
+            ny = max(min(int(vert.ny * 32768), 32767), -32767)
+            nz = max(min(int(vert.nz * 32768), 32767), -32767)
+
             try:
                 buf.write(struct.pack("<hhh",nx,ny,nz))
             except:
@@ -226,16 +207,16 @@ class plVertexCoder:
             #vcolor=vert.color.uget()
             vcolor=[vert.color.b,vert.color.g,vert.color.r,vert.color.a]
             if not compress:
-                for e in range(4):
-                    buf.write(struct.pack("<H",1))
-                    buf.write(struct.pack("B",vcolor[e]))
+                for col in vcolor:
+                    buf.write(struct.pack("<H", 1))
+                    buf.write(struct.pack("B", col))
             else:
-                for e in range(4):
+                for e in xrange(4):
                     if VarC[e]==0:
                         #first
                         color[e]=vcolor[e]
                         #count
-                        for vi in range(n-i):
+                        for vi in xrange(n-i):
                             vicolor=[bufferGroup.fVertBuffStorage[vi+i].color.b,bufferGroup.fVertBuffStorage[vi+i].color.g,bufferGroup.fVertBuffStorage[vi+i].color.r,bufferGroup.fVertBuffStorage[vi+i].color.a]
                             if vicolor[e]==color[e]:
                                 VarC[e]=VarC[e]+1
@@ -246,16 +227,15 @@ class plVertexCoder:
                         else:
                             cf=0x8000
                         buf.write(struct.pack("<HB",VarC[e] | cf,color[e]))
-                    VarC[e]=VarC[e]-1
+                    VarC[e] -= 1
             #texture coordinates
             if not compress:
-                for j in range(bufferGroup.GetUVCount()):
-                    for k in range(3):
-                        buf.write(struct.pack("<fHH",vert.tex[j][k],1,0)) #base, n, offset
-                        #buf.write(struct.pack("fHH",0,1,0))
+                for j in xrange(bufferGroup.GetUVCount()):
+                    for k in xrange(3):
+                        buf.write(struct.pack("<fHH", vert.tex[j][k], 1, 0)) #base, n, offset
             else:
-                for j in range(bufferGroup.GetUVCount()):
-                    for k in range(3):
+                for j in xrange(bufferGroup.GetUVCount()):
+                    for k in xrange(3):
                         e=(3*j)+k
                         if VarD[e]==0:
                             #first
@@ -264,8 +244,8 @@ class plVertexCoder:
                             for vi in range(n-i):
                                 xbase=bufferGroup.fVertBuffStorage[vi+i].tex[j][k]
                                 off = (xbase - TBase[e]) * 65536.0
-                                if off<65536 and off>=0:
-                                    VarD[e]=VarD[e]+1
+                                if off < 65536 and off >= 0:
+                                    VarD[e] += 1
                                 else:
                                     break
                             buf.write(struct.pack("<fH",TBase[e],VarD[e]))
@@ -273,8 +253,8 @@ class plVertexCoder:
                         off=(vert.tex[j][k]-TBase[e]) * 65536.0
                         #assert((TBase[e]+(off/65536.0))==vert.tex[j][k])
                         #print i,j,k,e,off
-                        buf.write(struct.pack("<H",off))
-                        VarD[e]=VarD[e]-1
+                        buf.write(struct.pack("<H", off))
+                        VarD[e] -= 1
 
 
 class plGBufferCell:
@@ -503,15 +483,15 @@ class plGBufferGroup:
         VertexStorageCount = 1
         # Calculate the size
         size = 0
-        for i in range(VertexStorageCount):
+        for i in xrange(VertexStorageCount):
             size += len(self.fVertBuffStorage)
-        for i in range(len(self.fIdxBuffStorage)):
-            size += len(self.fIdxBuffStorage[i])
+        for i in self.fIdxBuffStorage:
+            size += len(i)
         buf.WriteByte(self.fFormat)
         buf.Write32(size)
         coder = plVertexCoder()
         buf.Write32(VertexStorageCount)
-        for i in range(VertexStorageCount):
+        for i in xrange(VertexStorageCount):
             count = len(self.fVertBuffStorage)
             buf.Write16(count)
 
@@ -520,9 +500,9 @@ class plGBufferGroup:
                     print "=> Storing %i vertices of geometry - this can take some time...." % count
                 else:
                     print "=> Storing %i vertices of geometry..." % count
-            coder.write(self,buf,count)
+            coder.write(self, buf, count)
         buf.Write32(len(self.fIdxBuffStorage))
-        for i in range(len(self.fIdxBuffStorage)):
+        for idx in xrange(len(self.fIdxBuffStorage)):
             indexStorageLength = len(self.fIdxBuffStorage[i])
             buf.Write32(indexStorageLength)
             for j in range(indexStorageLength):
@@ -536,9 +516,9 @@ class plGBufferGroup:
         cells = hsTArray()
         cells.append(cell)
         self.fCells.append(cells)
-        for i in range(VertexStorageCount):
+        for i in xrange(VertexStorageCount):
             buf.Write32(len(self.fCells.vector[i]))
-            for j in range(len(self.fCells.vector[i])):
+            for j in xrange(len(self.fCells.vector[i])):
                 self.fCells.vector[i].vector[j].write(buf)
 
 class plDISpanIndex: #NOTE: This is a pile of guesswork (it still is on 28/nov/07)
@@ -1638,7 +1618,7 @@ class plDrawInterface(plObjInterface):
         # recompute the normals if requested (they will be overwritten with Blender-computed normals again next time edit mode is exited for the mesh)
         if getTextPropertyOrDefault(obj, "renormal", FindInDict(objscript, "visual.renormal", None)) == "areaweighted":
             # compute vertex normals as the average of the face normals of all faces adjacent to the vertex, weighted by face area
-            normals = [Mathutils.Vector((0, 0, 0)) for i in range(len(mesh.verts))]
+            normals = [Mathutils.Vector((0, 0, 0)) for i in xrange(len(mesh.verts))]
             for f in mesh.faces:
                 n = f.area*f.no
                 for v in f:
@@ -1962,8 +1942,8 @@ class plDrawInterface(plObjInterface):
         propString = FindInDict(objscript,"visual.visregions", [])
         if type(propString) == list:
             for reg in propString:
-                if (reg != None):
-                    if(softVolParser != None and softVolParser.isStringProperty(str(reg))):
+                if reg is not None:
+                    if softVolParser is not None and softVolParser.isStringProperty(str(reg)):
                         volume = softVolParser.parseProperty(str(reg),str(self.Key.name))
                     else:
                         refparser = ScriptRefParser(self.getRoot(),str(self.Key.name),"softvolume")

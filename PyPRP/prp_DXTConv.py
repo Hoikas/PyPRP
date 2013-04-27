@@ -329,7 +329,7 @@ class tDxtImage(tImage):
             max=6
         else:
             max=4
-        for i in range(max):
+        for i in xrange(max):
             ai=(((max-i) * alpha0) + ((i+1)*alpha1))/(max+1)
             a.append(ai)
         if max==4:
@@ -345,19 +345,20 @@ class tDxtImage(tImage):
 
 
     def rgba2texel(self,input,w):
-        r=[]
-        g=[]
-        b=[]
-        a=[]
+        r = [0] * 16
+        g = [0] * 16
+        b = [0] * 16
+        a = [0] * 16
         alpha=0
         for i in xrange(4):
             for e in xrange(4):
                 #print input.tell(),self.w,self.h,w
                 ri,gi,bi,ai = struct.unpack("BBBB",input.read(4))
-                r.append(ri)
-                g.append(gi)
-                b.append(bi)
-                a.append(ai)
+                j = (i * 4) + e
+                r[j] = ri
+                g[j] = gi
+                b[j] = bi
+                a[j] = ai
                 if self.type!=1 or (alpha==0 and ai<128):
                     self.hasalpha=1
                     alpha=1
@@ -401,9 +402,6 @@ class tDxtImage(tImage):
                 r1=0x00
                 g1=0x00
                 b1=0x00
-        rt=[]
-        gt=[]
-        bt=[]
         if (not alpha) or self.type!=1:
             aa = max(c0,c1)
             bb = min(c0,c1)
@@ -413,19 +411,13 @@ class tDxtImage(tImage):
             bb = max(c0,c1)
             maxi=1
         if aa==c0:
-            rt.append(r0)
-            rt.append(r1)
-            gt.append(g0)
-            gt.append(g1)
-            bt.append(b0)
-            bt.append(b1)
+            rt = [r0, r1]
+            gt = [g0, g1]
+            bt = [b0, b1]
         else:
-            rt.append(r1)
-            rt.append(r0)
-            gt.append(g1)
-            gt.append(g0)
-            bt.append(b1)
-            bt.append(b0)
+            rt = [r1, r0]
+            gt = [g1, g0]
+            bt = [b1, b0]
         c0 = 0L
         c1 = 0L
         c0 |= aa
@@ -497,9 +489,7 @@ class tDxtImage(tImage):
         #u64 = u64<<3
         if not a0>a1:
             max=4
-        t=[]
-        t.append(a0)
-        t.append(a1)
+        t = [a0, a1]
         for i in xrange(max):
             ai=(((max-i) * a0) + ((i+1)*a1))/(max+1)
             t.append(ai)

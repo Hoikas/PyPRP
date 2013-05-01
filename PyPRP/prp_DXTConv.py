@@ -169,6 +169,8 @@ class tImage:
 
 
 class tDxtImage(tImage):
+    _mini = 3 * pow(255, 2)
+
     def __init__(self,w,h,type):
         tImage.__init__(self,w,h)
         self.type=type
@@ -379,38 +381,37 @@ class tDxtImage(tImage):
                     g1=g[e]
                     b0=b[i]
                     b1=b[e]
-        c0 = r0>>3
-        c0 = c0<<6
-        c0 |= g0>>2
-        c0 = c0<<5
-        c0 |= b0>>3
-        c1 = r1>>3
-        c1 = c1<<6
-        c1 |= g1>>2
-        c1 = c1<<5
-        c1 |= b1>>3
-        #print b0,g0,r0,b1,g1,r1
-        #check
-        if c0==c1:
-            if c0==0x00:
-                c1=0xFF
-                r1=0xFF
-                g1=0xFF
-                b1=0xFF
+        c0 = r0 >> 3
+        c0 <<= 6
+        c0 |= g0 >> 2
+        c0 <<= 5
+        c0 |= b0 >> 3
+        c1 = r1 >> 3
+        c1 <<= 6
+        c1 |= g1 >> 2
+        c1 <<= 5
+        c1 |= b1 >> 3
+
+        if c0 == c1:
+            if not c0:
+                c1 = 0xFF
+                r1 = 0xFF
+                g1 = 0xFF
+                b1 = 0xFF
             else:
-                c1=0x00
-                r1=0x00
-                g1=0x00
-                b1=0x00
-        if (not alpha) or self.type!=1:
-            aa = max(c0,c1)
-            bb = min(c0,c1)
-            maxi=2
+                c1 = 0
+                r1 = 0
+                g1 = 0
+                b1 = 0
+        if not alpha or self.type != 1:
+            aa = max(c0, c1)
+            bb = min(c0, c1)
+            maxi = 2
         else:
-            aa = min(c0,c1)
-            bb = max(c0,c1)
-            maxi=1
-        if aa==c0:
+            aa = min(c0, c1)
+            bb = max(c0, c1)
+            maxi = 1
+        if aa == c0:
             rt = [r0, r1]
             gt = [g0, g1]
             bt = [b0, b1]
@@ -418,24 +419,18 @@ class tDxtImage(tImage):
             rt = [r1, r0]
             gt = [g1, g0]
             bt = [b1, b0]
-        c0 = 0L
-        c1 = 0L
-        c0 |= aa
-        c1 |= bb
-        #assert(c0>c1)
-        u64 = 0L
-        u64 |= c0
-        #print "%X" %u64
-        #u64 = u64 << 16
-        u64 |= c1<<16
-        #print "%X" %u64
-        #u64 = u64 << 2
-        #print "%X" %u64
-        #print ">%X %X %X" %(u64,c0,c1)
+        c0 = aa
+        c1 = bb
+        u64 = c0 | (c1 << 16)
+
+        _maxi_div = maxi + 1
         for i in xrange(maxi):
-            bi=(((maxi-i) * bt[0]) + ((i+1)*bt[1]))/(maxi+1)
-            gi=(((maxi-i) * gt[0]) + ((i+1)*gt[1]))/(maxi+1)
-            ri=(((maxi-i) * rt[0]) + ((i+1)*rt[1]))/(maxi+1)
+            _maxi_mult = maxi - i
+            _i_p1 = i + 1
+
+            bi = (_maxi_mult * bt[0] + _i_p1 * bt[1]) / _maxi_div
+            gi = (_maxi_mult * gt[0] + _i_p1 * gt[1]) / _maxi_div
+            ri = (_maxi_mult * rt[0] + _i_p1 * rt[1]) / _maxi_div
             rt.append(ri)
             gt.append(gi)
             bt.append(bi)
@@ -443,22 +438,19 @@ class tDxtImage(tImage):
             rt.append(ri)
             gt.append(gi)
             bt.append(bi)
+
         for i in xrange(16):
-            mini = 3 * pow(255, 2)
-            if maxi==1 and a[i]<128:
-                result=3L
+            if maxi == 1 and a[i] < 128:
+                result = 3
             else:
-                for e in xrange(maxi + 1 ,-1, -1):
+                mini = self._mini # copy precalculated value to save time
+                for e in xrange(_maxi_div, -1, -1):
                     d = pow(r[i] - rt[e], 2) + pow (g[i] - gt[e], 2) + pow(b[i] - bt[e], 2)
-                    if d<=mini:
-                        result=0L
-                        result |=e
-                        mini=d
-            u64 |= result << ((2*i)+32)
-            #if i!=15:
-            #    u64 = u64 << 2
-        #print ">%X" %u64
-        self.rawdata.write(struct.pack("<Q",u64))
+                    if d <= mini:
+                        result = e
+                        mini = d
+            u64 |= result << (2 * i + 32)
+        self.rawdata.write(struct.pack("<Q", u64))
 
 
     def writeAlpha(self,alpha):

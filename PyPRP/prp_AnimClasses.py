@@ -602,6 +602,13 @@ class plAnimStage:
         "kNotifyRegress": 0x8
     }
 
+    alcNotifyType = {
+        "enter": 0x1,
+        "loop": 0x2,
+        "advance": 0x4,
+        "regress": 0x8
+    }
+
     ForwardType = {
         "kForwardNone": 0,
         "kForwardKey": 1,
@@ -614,6 +621,13 @@ class plAnimStage:
         "kBackKey": 1,
         "kBackAuto": 2,
         "kBackMax": 3
+    }
+
+    alcFwdBackType = {
+        "none": 0,
+        "key": 1,
+        "auto": 2,
+        "max": 3
     }
 
     AdvanceType = {
@@ -630,6 +644,14 @@ class plAnimStage:
         "kAdvanceAuto": 2,
         "kAdvanceOnAnyKey": 3,
         "kAdvanceMax": 4
+    }
+
+    alcAdvRegType = {
+        "none": 0,
+        "onmove": 1,
+        "auto": 2,
+        "onanykey": 3,
+        "max": 4
     }
 
     def __init__(self):
@@ -672,6 +694,44 @@ class plAnimStage:
         s.Write32(self.fAdvanceTo)
         s.WriteBool(self.fDoRegressTo)
         s.Write32(self.fRegressTo)
+
+
+    def export_script(self, script, scnobj=None):
+        if not "anim" in script:
+            raise RuntimeError("You can't have an AnimStage without an animation!")
+        self.fAnimName = script["anim"]
+
+        # notify type flags
+        notify_script = list(FindInDict(script, "notify", []))
+        for i in notify_script:
+            try:
+                self.fNotify |= plAnimStage.alcNotifyType[i.lower()]
+            except KeyError:
+                raise RuntimeError("Unknown plAnimStage Notify '%s'! Valid options: %s" % (i, repr(plAnimStage.alcNotifyType)))
+
+        def do_type(script, var, flagdict):
+            fwd = str(FindInDict(script, var, "none")).lower()
+            try:
+                return flagdict[fwd]
+            except KeyError:
+                raise RuntimeError("Unknown %s '%s'! Valid options: %s" % (var, fwd, repr(flagdict)))
+
+        self.fForwardType = do_type(script, "forwardtype", plAnimStage.alcFwdBackType)
+        self.fBackType = do_type(script, "backtype", plAnimStage.alcFwdBackType)
+        self.fAdvanceType = do_type(script, "advancetype", plAnimStage.alcAdvRegType)
+        self.fRegressType = do_type(script, "regresstype", plAnimStage.alcAdvRegType)
+
+        self.fLoops = int(FindInDict(script, "loops", self.fLoops))
+
+        advto = FindInDict(script, "advanceto", None)
+        if advto is not None:
+            self.fDoAdvanceTo = True
+            self.fAdvanceTo = int(advoto)
+        regto = FindInDict(script, "regressto", None)
+        if regto is not None:
+            self.fDoRegressTo = True
+            self.fRegressTo = int(regto)
+
 
 
 ###ATC Curve###

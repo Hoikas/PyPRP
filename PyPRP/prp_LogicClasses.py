@@ -1452,7 +1452,7 @@ class plMultiStageBehMod(plSingleModifier):
         for stagecript in stagelist:
             if type(stagecript) == dict:
                 stage = plAnimStage()
-                stage.fAnimName = stagecript["anim"] if "anim" in stagecript else stage.fAnimName
+                stage.export_script(stagecript, scnobj)
                 self.fStages.append(stage)
 
     def _Export(page,obj,scnobj,name):

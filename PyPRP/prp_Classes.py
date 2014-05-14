@@ -402,12 +402,37 @@ class plExcludeRegionModifier(plSingleModifier):
     def write(self,stream):
         plSingleModifier.write(self,stream)
 
-        stream.Write32(len(fSafePoints))
+        stream.Write32(len(self.fSafePoints))
         for safepoint in self.fSafePoints:
             safepoint.write(stream)
 
         stream.WriteBool(self.fSeek)
         stream.WriteFloat(self.fSeekTime)
+
+    def export_obj(self, obj):
+        print "  [ExcludeRegionModifier %s]" % (str(self.Key.name))
+
+        objscript = AlcScript.objects.Find(obj.name)
+        self.fSeek = FindInDict(objscript, "region.seek", False)
+        self.fSeekTime = float(FindInDict(objscript, "region.seektime", 10))
+
+        # SafePoints are (supposedly) plSceneObjects with a CI
+        # This maps to a blender Empty...
+        refparser = ScriptRefParser(self.getRoot(), defaulttype=0x0001, allowlist=[0x0001])
+        safepoints = FindInDict(objscript, "region.safepoints", [])
+        if not safepoints:
+            raise RuntimeError("ExcludeRegion '%s' MUST have at least one SafePoint!" % self.Key.name)
+        for i in safepoints:
+            ref = refparser.RefString_FindCreateRef(i)
+            if not ref.isNull():
+                self.fSafePoints.append(ref)
+
+    def _Export(page, obj, scnobj, name):
+        xrgn = plExcludeRegionModifier.FindCreate(page, name)
+        xrgn.data.export_obj(obj)
+        scnobj.data.addModifier(xrgn)
+    Export = staticmethod(_Export)
+
 
 class plSoftVolume(plRegionBase):               #Type 0x0087 (Uru)
     Flags = \

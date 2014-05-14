@@ -84,6 +84,13 @@ class PrpMessage:
                 self.data = plTimerCallbackMsg(self)
             elif self.msgtype == 0x024B:
                 self.data = plEventCallbackMsg(self)
+<<<<<<< HEAD
+=======
+            elif self.msgtype == 0x02E1:
+                self.data = plLinkToAgeMsg(self)
+            elif self.msgtype == 0x0330:
+                self.data = plExcludeRegionMsg(self)
+>>>>>>> c2c4364... Actually do ExcludeRegions...
             else:
                 raise ValueError, "Unsupported message type %04X %s" % (self.msgtype,MsgKeyToMsgName(self.msgtype))
         elif self.version == 6:
@@ -420,21 +427,39 @@ class plGenRefMsg(plRefMsg):                # Message Type: 0x0204 - plGenRefMsg
 
 
 class plExcludeRegionMsg(plMessage):            # Message Type: 0x0330
+    Cmd = {
+        "clear": 0, # moves all the avatars OUT of the ExcludeRegion
+        "release": 1, # allows avatars back into the ExcludeRegion
+    }
+
     def __init__(self,parent=None,type=0x0330):
         plMessage.__init__(self,parent,type)
-        self.member28 = 0
-        self.member2C = 0
+        self.fCmd = 0
+        self.fSynchFlags = 0 # you probably don't need this...
 
 
     def read(self,buf):
         self.IMsgRead(buf)
-        self.member28 = buf.ReadByte()
-        self.member2C = buf.Read32()
+        self.fCmd = buf.ReadByte()
+        self.fSynchFlags = buf.Read32()
+
 
     def write(self,buf):
         self.IMsgWrite(buf)
-        buf.WriteByte(self.member28)
-        buf.Write32(self.member2C)
+        buf.WriteByte(self.fCmd)
+        buf.Write32(self.fSynchFlags)
+
+
+    def export_script(self, script, refparser):
+        plMessage.export_script(self, script, refparser)
+
+        cmd = FindInDict(script, "cmd", "clear").lower()
+        try:
+            self.fCmd = plExcludeRegionMsg.Cmd[cmd]
+        except KeyError:
+            raise RuntimeError("Invalid plExcludeRegionMsg command '%s'. Valid options: %s" % (cmd, repr(plExcludeRegionMsg.Cmd)))
+
+
 
 class plCameraMsg(plMessage):                   # Message Type: 0x020A - plCameraMsg
     ModCmds = \

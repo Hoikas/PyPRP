@@ -1052,6 +1052,7 @@ class plHKPhysical(plPhysical):
     { \
         "cRespNone"         : 0x00000000,\
         "cRespClickable"    : 0x00020000,\
+        "cRespExclude"      : 0x01000000,\
         "cRespInitial"      : 0x02000000\
     }
 
@@ -1441,6 +1442,20 @@ class plHKPhysical(plPhysical):
                 self.gFlagsDetect  = plHKPhysical.FlagsDetect["cDetectBoundaries"]
                 self.gFlagsRespond = plHKPhysical.FlagsRespond["cRespNone"]
 
+                self.fProps[plSimulationInterface.plSimulationProperties["kPinned"]] = 1
+
+            elif regiontype == "exclude":
+                self.gColType = plHKPhysical.Collision["cDetector"]
+
+                # all this crap is zero
+                self.fMass = 0.0
+                self.fRC = 0.0
+                self.fEL = 0.0
+
+                self.gFlagsDetect = plHKPhysical.FlagsDetect["cDetectNone"]
+                self.gFlagsRespond = plHKPhysical.FlagsRespond["cRespExclude"]
+
+                self.fLOSDB = plPhysical.plLOSDB["kLOSDBUIBlockers"] | plPhysical.plLOSDB["kLOSDBCameraBlockers"]
                 self.fProps[plSimulationInterface.plSimulationProperties["kPinned"]] = 1
 
             else:

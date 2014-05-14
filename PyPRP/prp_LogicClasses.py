@@ -295,18 +295,21 @@ class AlcLogicHelper:
         regiontype = FindInDict(objscript,'region.type',"logic")
         regiontype = FindInDict(objscript,'regiontype',regiontype)
         regiontype = getTextPropertyOrDefault(obj,"regiontype",regiontype)
+        regiontype = regiontype.lower()
 
         print " [LogicHelper]"
-        if regiontype.lower() == "climbing":
+        if regiontype == "climbing":
             plAvLadderMod.Export(page,obj,scnobj,name)
-        elif regiontype.lower() == "swimdetect":
+        elif regiontype == "swimdetect":
             plSwimRegion.Export(page,obj,scnobj,name)
-        elif regiontype.lower() == "swim":
+        elif regiontype== "swim":
             plSwimRegionInterface.Export(page,obj,scnobj,name)
-        elif regiontype.lower() == "panic":
+        elif regiontype == "panic":
             plPanicLinkRegion.Export(page,obj,scnobj,name)
-        elif regiontype.lower() == "camera":
+        elif regiontype == "camera":
             plCameraRegionDetector.Export(page,obj,scnobj,name)
+        elif regiontype == "exclude":
+            plExcludeRegionModifier.Export(page,obj,scnobj,name)
         else:
             logicscript = FindInDict(objscript,'logic',{})
             AlcLogicHelper.ExportLogic(page,logicscript,scnobj)
@@ -2082,6 +2085,7 @@ class plResponderCmd:
         "animcmdmsg"        : 0x0206, \
         "timercallbackmsg"  : 0x024A, \
         "eventcallbackmsg"  : 0x024B, \
+        "excluderegionmsg"  : 0x0330, \
     }
 
     def __init__(self,parent):

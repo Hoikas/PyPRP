@@ -57,6 +57,10 @@ class hsStream:
         u_str.read(self)
         return str(u_str)
 
+    def ReadStdString(self):
+        sz, = struct.unpack("<H",self.fs.read(2))
+        assert sz <= 0xFFFF
+        return str(self.fs.read(sz))
 
     def Read16(self):
         data, = struct.unpack("<H",self.fs.read(2))
@@ -116,6 +120,12 @@ class hsStream:
         u_str = Ustr(data,ver)
         u_str.write(self,ver)
 
+    def WriteStdString(self, data):
+        sz = len(data)
+        assert sz <= 0xFFFF
+
+        self.fs.write(struct.pack("<H", sz))
+        self.fs.write(data)
 
     def Write16(self,data):
         self.fs.write(struct.pack("<H",data))

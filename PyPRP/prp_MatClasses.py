@@ -2896,9 +2896,16 @@ class plDynamicEnvMap(plCubicRenderTarget):
 class plDynamicTextMap(plMipMap):
     def __init__(self,parent=None,name="unnamed",type=0x00AD):
         plMipMap.__init__(self,parent,name,type)
-        self.fVisWidth = 512;
-        self.fVisHeight = 512;
-        self.fHasAlpha = False;
+
+        # plBitmap
+        self.fCompressionType = 0
+        self.BitmapInfo.fUncompressedInfo.fType = 0
+        self.fFlags = 0x11
+
+        # plDynamicTextMap
+        self.fVisWidth = 512
+        self.fVisHeight = 512
+        self.fHasAlpha = False
     
     def _Find(page,name):
         return page.find(0x00AD,name,0)
@@ -2928,9 +2935,9 @@ class plDynamicTextMap(plMipMap):
         stream.Write32(0) #DO NOT HANDLE THE INSANITY!
     
     def export_obj(self, obj):
-        self.fCompressionType = 0
-        self.BitmapInfo.fUncompressedInfo.fType = 0
-        self.fFlags = 0x11
+        objscript = AlcScript.objects.Find(obj.name)
+        self.fVisHeight = int(FindInDict(objscript, "dyntext.visheight", self.fVisHeight))
+        self.fVisWidth = int(FindInDict(objscript, "dyntext.viswidth", self.fVisWidth))
 
 #############################################################
 # Begin waveset stuff. This likely belongs in DrawClasses.  #
